@@ -238,7 +238,7 @@ top20 <- top20 %>%
   mutate(Quality = str_detect(Key, "m")) %>% 
   mutate(Quality = if_else(Quality, "Minor", "Major"))
 
-top20 %>% filter(Quality == "Minor") %>% arrange(-Rank_New)
+top20 %>% filter(Quality == "Minor") %>% arrange(Rank_New)
 
-# Good Vibrations by The Beach Boys is the top-ranked song from the top 20 that used a minor key.
+# God Only Knows by The Beach Boys is the top-ranked song from the top 20 that used a minor key.
 
