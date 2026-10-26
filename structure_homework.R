@@ -2,10 +2,11 @@
 #For full credit, provide answers for at least 8/11 questions
 
 #List names of students collaborating with: 
+# Aylin, Krista, Megan
 
 ### SETUP: RUN THIS BEFORE STARTING ----------
 
-install.packages("rvest")
+# install.packages("rvest")
 
 #Load packages
 library(tidyverse)
@@ -39,6 +40,12 @@ load("rs_data.RData")
 
 #ANSWER
 
+rs_joined_orig <- full_join(rs_new, rs_old, by = c("Artist", "Song")) 
+rs_joined_orig
+nrow(rs_joined_orig)
+View(rs_joined_orig)
+
+#There were various reasons why some of the artist-song failed to match up. For instance, the Sex Pistols went by "Sex Pistols" in one dataset but "The Sex Pistols" in the another. Another example is Simon & Garfunkel, who went by "Simon & Garfunkel" in one data set but "Simon and Garfunkel" in the other. Additionally, some of the songs were ranked in one dataset but not in the other.
 
 
 ### Question 2 ---------- 
@@ -50,7 +57,16 @@ load("rs_data.RData")
 # Make Rank and Year into integer variables for rs_old before binding them into rs_all
 
 #ANSWER
+rs_new$Source <- "New"
+rs_new
+rs_old$Source <- "Old"
+rs_old
 
+rs_old$Rank <- as.integer(rs_old$Rank)
+rs_old$Year <- as.integer(rs_old$Year)
+
+rs_all <- bind_rows(rs_new, rs_old)
+rs_all
 
 ### Question 3 ----------
 
@@ -63,6 +79,26 @@ load("rs_data.RData")
 
 #ANSWER
 
+library(stringr)
+
+??str_to_lower
+??str_trim
+
+rs_all <- rs_all %>% mutate(Artist = Artist %>% 
+                              str_remove_all("The ") %>% 
+                              str_replace_all("&", "and") %>% 
+                              str_remove_all("[:punct:]") %>% 
+                              str_to_lower() %>% 
+                              str_trim())
+
+rs_all <- rs_all %>% mutate(Song = Song %>% 
+                              str_remove_all("The ") %>% 
+                              str_replace_all("&", "and") %>% 
+                              str_remove_all("[:punct:]") %>% 
+                              str_to_lower() %>% 
+                              str_trim())
+
+view(rs_all)
 
 ### Question 4 ----------
 
@@ -76,6 +112,15 @@ load("rs_data.RData")
 
 #ANSWER
 
+new <- rs_all %>% filter(Source == "New")
+old <- rs_all %>% filter(Source == "Old")
+
+??full_join
+
+rs_joined <- full_join(new, old, by = c("Artist", "Song"), suffix = c("_New","_Old"))
+nrow(rs_joined)
+
+# Yes! The string cleaning improved the matches and there are now 799 rows.
 
 ### Question 5 ----------
 
@@ -89,6 +134,13 @@ load("rs_data.RData")
 
 #ANSWER
 
+rs_joined <- rs_joined %>% 
+  select(-c(Source_New, Source_Old)) %>% 
+  drop_na(Rank_Old, Rank_New) %>% 
+  mutate(Rank_Change = Rank_Old - Rank_New) %>% 
+  arrange(Rank_Change)
+
+view(rs_joined)
 
 ### Question 6 ----------
 
@@ -100,7 +152,13 @@ load("rs_data.RData")
 
 #ANSWER
 
+rs_joined <- rs_joined %>% mutate(Decade = round(Year_New, -1))
 
+rs_joined$Decade <- as_factor(paste0(rs_joined$Decade, sep = "s"))
+
+rs_joined %>% group_by(Decade) %>% summarize(mean_rank_change = mean(Rank_Change))
+
+# The 1990s improved the most in popularity, with their average song increasing by 66 ranks.
 
 ### Question 7 ----------
 
@@ -111,7 +169,9 @@ load("rs_data.RData")
 
 #ANSWER
 
+fct_count(rs_joined$Decade)
 
+fct_count(fct_lump(rs_joined$Decade, n = 3), prop = TRUE)
 
 ### Question 8 ---------- 
 
@@ -121,6 +181,11 @@ load("rs_data.RData")
 
 #ANSWER
 
+top20 <- read.csv("top_20.csv")
+glimpse(top20)
+
+top20$Release <- parse_date_time(top20$Release, 'd-b-Y')
+glimpse(top20)
 
 ### Question 9 --------
 
@@ -130,7 +195,11 @@ load("rs_data.RData")
 
 #ANSWER
 
+view(top20)
 
+top20 <- pivot_wider(top20, names_from = Style, values_from = Value)
+
+nrow(top20)
 
 ### Question 10 ---------
 
@@ -144,7 +213,17 @@ load("rs_data.RData")
 
 #ANSWER
 
+top20 <- left_join(top20, rs_joined, by = c("Artist", "Song"))
 
+top20$month <- month(top20$Release, label = TRUE)
+
+top20 <- top20 %>% mutate(season = fct_collapse(month, 
+                                                Winter = c("Dec", "Jan", "Feb"), 
+                                                Spring = c("Mar", "Apr", "May"), 
+                                                Summer = c("Jun", "Jul", "Aug"), 
+                                                Autumn = c("Sep","Oct","Nov")))
+
+top20 %>% count(season)
 
 ### Question 11 ---------
 
@@ -155,5 +234,11 @@ load("rs_data.RData")
 
 #ANSWER
 
+top20 <- top20 %>% 
+  mutate(Quality = str_detect(Key, "m")) %>% 
+  mutate(Quality = if_else(Quality, "Minor", "Major"))
 
+top20 %>% filter(Quality == "Minor") %>% arrange(-Rank_New)
+
+# Good Vibrations by The Beach Boys is the top-ranked song from the top 20 that used a minor key.
 
